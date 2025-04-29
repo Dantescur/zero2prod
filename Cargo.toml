@@ -19,6 +19,10 @@ reqwest = "0.12.15"
 serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread"] }
 config = "0.15.11"
+uuid = { version = "1.16.0", features = ["v4"] }
+chrono = { version = "0.4.40", default-features = false, features = ["clock"] }
+log = "0.4.27"
+env_logger = "0.11.8"
 
 [dependencies.sqlx]
 version = "0.8.5"
