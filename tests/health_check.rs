@@ -163,7 +163,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
     let test_cases = vec![
         ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
         ("name=Ursula&email=", "empty email"),
-        ("name=Ursula&email=definitely-not-an-email", "inva;id email"),
+        ("name=Ursula&email=definitely-not-an-email", "invalid email"),
     ];
 
     for (body, description) in test_cases {
@@ -177,7 +177,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
         assert_eq!(
             400,
             response.status().as_u16(),
-            "The API did not return a 200 OK when the payload is {}.",
+            "The API did not return a 400 Bad Request when the payload is {}.",
             description
         )
     }

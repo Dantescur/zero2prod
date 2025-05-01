@@ -26,6 +26,7 @@ unicode-segmentation = "1.12.0"
 claims = "0.8.0"
 tracing = { version = "0.1.41", features = ["log"] }
 tracing-bunyan-formatter = "0.3.10"
+validator = "0.20.0"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = [
   "registry",
@@ -47,3 +48,9 @@ features = [
   "chrono",
   "migrate",
 ]
+
+[dev-dependencies]
+fake = "4.3.0"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
+rand = "0.9.1"
