@@ -2,7 +2,7 @@
 
 use std::{net::TcpListener, sync::LazyLock};
 
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::SecretBox;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
@@ -26,6 +26,7 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub server_handle: actix_web::dev::ServerHandle,
 }
 
 #[tokio::test]
@@ -41,6 +42,8 @@ async fn health_check_works() {
 
     assert!(response.status().is_success());
     assert_eq!(Some(0), response.content_length());
+
+    app.server_handle.stop(true).await;
 }
 
 async fn spawn_app() -> TestApp {
@@ -57,10 +60,13 @@ async fn spawn_app() -> TestApp {
 
     let server =
         zero2prod::startup::run(listener, connection_pool.clone()).expect("Failed to bind address");
-    let _ = tokio::spawn(server).await;
+    let server_handle = server.handle();
+
+    tokio::spawn(server);
     TestApp {
         address,
         db_pool: connection_pool,
+        server_handle,
     }
 }
 
@@ -70,18 +76,18 @@ pub async fn configure_databse(config: &DatabaseSettings) -> PgPool {
         username: "postgres".to_string(),
         password: SecretBox::new(Box::new("Kilo2024*".to_string())),
         port: config.port,
+        require_ssl: false,
         host: config.host.clone(),
     };
-    let mut connection =
-        PgConnection::connect(maintenance_settings.connection_string().expose_secret())
-            .await
-            .expect("Failed to connect to Postgres.");
+    let mut connection = PgConnection::connect_with(&maintenance_settings.connect_options())
+        .await
+        .expect("Failed to connect to Postgres.");
     connection
         .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
         .await
         .expect("Failed to create database.");
 
-    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
+    let connection_pool = PgPool::connect_with(config.connect_options())
         .await
         .expect("Failed to connect to Postgres");
 
@@ -115,6 +121,8 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");
     assert_eq!(saved.name, "le guin");
+
+    app.server_handle.stop(true).await;
 }
 
 #[tokio::test]
@@ -144,4 +152,35 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
             error_message
         )
     }
+
+    app.server_handle.stop(true).await;
+}
+
+#[tokio::test]
+async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+    let test_cases = vec![
+        ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
+        ("name=Ursula&email=", "empty email"),
+        ("name=Ursula&email=definitely-not-an-email", "inva;id email"),
+    ];
+
+    for (body, description) in test_cases {
+        let response = client
+            .post(format!("{}/subscriptions", &app.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            "The API did not return a 200 OK when the payload is {}.",
+            description
+        )
+    }
+
+    app.server_handle.stop(true).await;
 }
