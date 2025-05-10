@@ -6,3 +6,8 @@ database:
   username: "postgres"
   password: "Kilo2024*"
   database_name: "zero2prod"
+email_client:
+  base_url: "https://api.postmarkapp.com"
+  sender_email: "newsletter@thedaniweb.eu.org"
+  authorization_token: "a-real-secret-token"
+  timeout_milliseconds: 10000
